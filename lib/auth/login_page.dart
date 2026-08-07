@@ -27,34 +27,51 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> login() async {
-    final response = await http.post(
-      Uri.parse("https://artifacts-api.marchosius.be/login"),
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: jsonEncode({
-        "username": usernameController.text,
-        "password": passwordController.text,
-      }),
-    );
+    try {
+      final response = await http.post(
+        Uri.parse("https://artifacts-api.marchosius.be/login"),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: jsonEncode({
+          "username": usernameController.text.trim(),
+          "password": passwordController.text,
+        }),
+      );
 
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
+      print("Status: ${response.statusCode}");
+      print("Body: ${response.body}");
 
-      final token = data["access_token"];
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
 
-      await storage.saveToken(token);
+        final token = data["access_token"];
 
+        if (token == null) {
+          throw Exception("No access token received");
+        }
+
+        await storage.saveToken(token);
+
+        if (!mounted) return;
+
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const HomePage(),
+          ),
+        );
+      } else {
+        throw Exception(response.body);
+      }
+    } catch (e) {
       if (!mounted) return;
 
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const HomePage(),
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Login error: $e"),
         ),
       );
-    } else {
-      print("Login failed: ${response.body}");
     }
   }
 
