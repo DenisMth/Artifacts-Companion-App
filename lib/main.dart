@@ -7,13 +7,12 @@ import 'screens/home_page.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  final storage = SecureStorageService();
-  final token = await storage.getToken();
-
+  final accessToken = await storage.getAccessToken();
+  final refreshToken = await storage.getRefreshToken();
 
   runApp(
     MyApp(
-      loggedIn: token != null,
+      loggedIn: accessToken != null && refreshToken != null,
     ),
   );
 }

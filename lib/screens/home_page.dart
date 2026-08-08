@@ -1,9 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-
-import '../storage/secure_storage.dart';
+import '../auth/api_client.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -23,6 +21,8 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   final _formKey = GlobalKey<FormState>();
+
+  final ApiClient api = ApiClient();
 
   final nameController = TextEditingController();
   final actionController = TextEditingController();
@@ -92,10 +92,10 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> submitForm() async {
     final characters = nameController.text
-      .split(',')
-      .map((name) => name.trim())
-      .where((name) => name.isNotEmpty)
-      .toList();
+        .split(',')
+        .map((name) => name.trim())
+        .where((name) => name.isNotEmpty)
+        .toList();
 
     final target = targetController.text.trim().isEmpty
         ? null
@@ -105,29 +105,27 @@ class _HomePageState extends State<HomePage> {
         ? null
         : optionController.text.trim();
 
-    final storage = SecureStorageService();
-    final token = await storage.getToken();
+    try {
+      final response = await api.post(
+        "/command",
+        body: jsonEncode({
+          "characters": characters,
+          "action": actionController.text,
+          "target": target,
+          "option": option,
+        }),
+      );
 
-    final response = await http.post(
-      Uri.parse("https://artifacts-api.marchosius.be/command"),
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": "Bearer $token",
-      },
-      body: jsonEncode({
-        "characters": characters,
-        "action": actionController.text,
-        "target": target,
-        "option": option
-      }),
-    );
-
-    if (response.statusCode >= 200 && response.statusCode < 300) {
-      print("Success!");
-      print(response.body);
-    } else {
-      print("Error: ${response.statusCode}");
-      print(response.body);
+      if (response.statusCode >= 200 &&
+          response.statusCode < 300) {
+        print("Success!");
+        print(response.body);
+      } else {
+        print("Error: ${response.statusCode}");
+        print(response.body);
+      }
+    } catch (e) {
+      print("Request failed: $e");
     }
   }
 

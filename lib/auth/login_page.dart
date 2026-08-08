@@ -45,13 +45,15 @@ class _LoginPageState extends State<LoginPage> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
 
-        final token = data["access_token"];
+        final accessToken = data["access_token"];
+        final refreshToken = data["refresh_token"];
 
-        if (token == null) {
-          throw Exception("No access token received");
+        if (accessToken == null || refreshToken == null) {
+          throw Exception("Tokens missing from server response");
         }
 
-        await storage.saveToken(token);
+        await storage.saveAccessToken(accessToken);
+        await storage.saveRefreshToken(refreshToken);
 
         if (!mounted) return;
 
