@@ -1,28 +1,23 @@
 import 'package:flutter/material.dart';
 import 'storage/secure_storage.dart';
+import 'auth/auth_service.dart';
 import 'auth/login_page.dart';
 import 'screens/home_page.dart';
 
-
-void main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
 
-  runApp(
-    const MyApp(
-    ),
-  );
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key, 
-  });
+  const MyApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Artifacts Companion App',
-      home: const AuthGate()
+      home: const AuthGate(),
     );
   }
 }
@@ -39,6 +34,8 @@ class _AuthGateState extends State<AuthGate> {
 
   bool? loggedIn;
 
+  String debugInfo = 'Starting authentication check...';
+
   @override
   void initState() {
     super.initState();
@@ -47,41 +44,102 @@ class _AuthGateState extends State<AuthGate> {
 
   Future<void> _checkAuthentication() async {
     try {
-      final accessToken = await storage.getAccessToken();
+      setState(() {
+        debugInfo = 'Checking for refresh token...';
+      });
+
       final refreshToken = await storage.getRefreshToken();
 
       if (!mounted) return;
 
       setState(() {
-        loggedIn = accessToken != null && refreshToken != null;
+        debugInfo =
+            'Refresh token exists: ${refreshToken != null}\n'
+            'Refresh token length: ${refreshToken?.length ?? 0}';
       });
-    } catch (e) {
-      debugPrint('Failed to load authentication: $e');
+
+      if (refreshToken == null) {
+        setState(() {
+          loggedIn = false;
+          debugInfo += '\nNo refresh token found → LOGIN';
+        });
+
+        return;
+      }
+
+      setState(() {
+        debugInfo += '\nAttempting to refresh access token...';
+      });
+
+      final authService = AuthService(storage);
+
+      final success = await authService.refreshAccessToken();
 
       if (!mounted) return;
 
       setState(() {
+        loggedIn = success;
+
+        debugInfo +=
+            '\nRefresh result: $success\n'
+            '${authService.lastError}\n'
+            '${success ? "Access token refreshed → HOME" : "Refresh failed → LOGIN"}';
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
         loggedIn = false;
+        debugInfo = 'ERROR:\n$e';
       });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Still checking storage.
     if (loggedIn == null) {
-      return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Authentication Debug'),
+        ),
+        body: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Center(
+            child: Text(
+              debugInfo,
+              style: const TextStyle(
+                fontSize: 16,
+              ),
+            ),
+          ),
         ),
       );
     }
 
-    // Storage has been checked.
     if (loggedIn!) {
       return const HomePage();
     }
 
-    return const LoginPage();
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Authentication Debug'),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              debugInfo,
+              style: const TextStyle(
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(height: 30),
+            const LoginPage(),
+          ],
+        ),
+      ),
+    );
   }
 }
